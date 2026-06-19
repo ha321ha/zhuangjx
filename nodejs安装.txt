@@ -1,0 +1,34 @@
+1、下载
+访问 nvm-windows 的官方 GitHub 仓库：https://github.com/coreybutler/nvm-windows/releases
+在“Assets”区域下载 nvm-setup.exe 这个安装文件。
+
+2、验证
+nvm version
+
+3、配置国内镜像源（加速下载）
+nvm node_mirror https://npmmirror.com/mirrors/node/
+nvm npm_mirror https://npmmirror.com/mirrors/npm/
+
+4、查看nodejs版本
+nvm list available
+
+5、安装指定版本
+nvm install 22.11.0
+
+6、切换并使用该版本
+nvm use 22.11.0
+
+7、验证
+node -v
+npm -v
+
+8、创建并指定全局和缓存目录
+npm config set prefix "D:\workPrograms\nodeJs\node_global"
+npm config set cache "D:\workPrograms\nodeJs\node_cache"
+
+9、配置系统环境变量
+9.1右键点击“此电脑” -> “属性” -> “高级系统设置” -> “环境变量”  ->“系统变量”
+新建 NODE_PATH D:\workPrograms\nodeJs\node_global\node_modules （基于 prefix 路径，后面加 \node_modules）
+9.2 "系统变量" 列表中找到 Path
+新建 D:\workPrograms\nodeJs\node_global
+
