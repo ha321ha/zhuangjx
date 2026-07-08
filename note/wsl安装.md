@@ -37,7 +37,7 @@ wsl --shutdown
 删掉 shell:startup 启动文件夹里的那个快捷方式
 ```
 
-## 打开ubuntu的目录
+## window打开ubuntu的目录
 
 ```
 \\wsl.localhost\Ubuntu-24.04\home
@@ -47,6 +47,12 @@ wsl --shutdown
 
 ```
 %userprofile%
+```
+
+wsl打开window目录
+
+```
+cd /mnt/d/
 ```
 
 

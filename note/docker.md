@@ -78,6 +78,29 @@ sudo service docker start
 echo 'sudo service docker start' >> ~/.bashrc
 ```
 
+## 2.6 配置加速镜像源
+
+```
+sudo tee /etc/docker/daemon.json <<-'EOF'
+{
+  "registry-mirrors": [
+    "https://docker.xuanyuan.me",
+    "https://docker.1ms.run",
+    "https://docker.m.daocloud.io",
+    "https://docker.1panel.live",
+    "https://atomhub.openatom.cn",
+    "https://hub.registry-mirrors.top"
+  ]
+}
+EOF
+
+
+sudo systemctl daemon-reload
+sudo systemctl restart docker
+```
+
+
+
 ---
 
 ## 3. 配置免 sudo 运行

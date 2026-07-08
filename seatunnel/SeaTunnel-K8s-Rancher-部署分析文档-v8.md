@@ -20,12 +20,12 @@
 
 ### 环境要求
 
-| 资源 | 说明 |
-|------|------|
-| K8s 集群（Rancher 管理） | ≥ 1.23 |
-| Harbor 镜像仓库 | 存放自建镜像。你的平台可能已经集成了 Harbor 拉取能力，见下文 |
-| MySQL 5.7+/8.0+ | SeaTunnel-Web 元数据库 |
-| **一台安装了 Podman Desktop 的 Windows 机器** | 构建镜像用，只用一次，不需要安装 Docker |
+| 资源                                    | 说明                                 |
+| ------------------------------------- | ---------------------------------- |
+| K8s 集群（Rancher 管理）                    | ≥ 1.23                             |
+| Harbor 镜像仓库                           | 存放自建镜像。你的平台可能已经集成了 Harbor 拉取能力，见下文 |
+| MySQL 5.7+/8.0+                       | SeaTunnel-Web 元数据库                 |
+| **一台安装了 Podman Desktop 的 Windows 机器** | 构建镜像用，只用一次，不需要安装 Docker            |
 
 ---
 
@@ -125,7 +125,7 @@ podman login harbor.你的公司.com
 
 ```bash
 cd seatunnel-engine-build
-podman build -t reg.meicloud.com:40443/ccs-std/prd/seatunnel-engine:2.3.11 .
+docker build -t reg.meicloud.com:40443/ccs-std/prd/seatunnel-engine:2.3.11 .
 ```
 
 Podman 输出示例（首次构建需下载基础镜像，约 1-2 分钟）：
@@ -155,13 +155,12 @@ podman run --rm harbor.你的公司.com/seatunnel/seatunnel-engine:2.3.11 ls /op
 
 ### Podman Desktop 常见问题
 
-| 问题 | 解决方法 |
-|------|---------|
-| `podman` 命令找不到 | 确保 Podman Desktop 已启动（系统托盘有企鹅图标），重启终端 |
-| 构建时磁盘空间不足 | Podman 默认镜像存储在 `C:\Users\xxx\AppData\Local\containers`，清理旧镜像：`podman system prune -a` |
-| 构建速度慢 | 首次构建需下载基础镜像，后续构建会利用缓存。如果公司网络限制，挂代理或使用镜像加速器 |
-| Harbor 登录报错 `x509: certificate` | 让运维确认 Harbor 证书可信，或在 Podman Desktop Settings → Registries 中添加 insecure registry |
-
+| 问题                              | 解决方法                                                                                  |
+| ------------------------------- | ------------------------------------------------------------------------------------- |
+| `podman` 命令找不到                  | 确保 Podman Desktop 已启动（系统托盘有企鹅图标），重启终端                                                 |
+| 构建时磁盘空间不足                       | Podman 默认镜像存储在 `C:\Users\xxx\AppData\Local\containers`，清理旧镜像：`podman system prune -a` |
+| 构建速度慢                           | 首次构建需下载基础镜像，后续构建会利用缓存。如果公司网络限制，挂代理或使用镜像加速器                                            |
+| Harbor 登录报错 `x509: certificate` | 让运维确认 Harbor 证书可信，或在 Podman Desktop Settings → Registries 中添加 insecure registry       |
 
 **结论**：除非你要修改 SeaTunnel 源码（比如改某个连接器的逻辑），否则直接 `wget` 下载二进制包 + 下载连接器 jar，比编译源码快得多（几分钟 vs 半小时以上）。
 
@@ -170,6 +169,7 @@ podman run --rm harbor.你的公司.com/seatunnel/seatunnel-engine:2.3.11 ls /op
 ### 前提确认
 
 部署前确认已在 Rancher 中切换到**目标命名空间**（你的现有命名空间）：
+
 ```
 集群 → Projects/Namespaces → 找到你的命名空间并选中
 →（后续操作均在该命名空间下进行）
@@ -183,13 +183,13 @@ Apps → Charts → 右上角 "Install Helm"
 
 填写：
 
-| 字段 | 值 |
-|------|-----|
-| Name | `seatunnel` |
-| Namespace | `$(NAMESPACE)` — 选你现有的命名空间 |
-| Create namespace | **取消勾选**（命名空间已经存在） |
+| 字段                  | 值                                                  |
+| ------------------- | -------------------------------------------------- |
+| Name                | `seatunnel`                                        |
+| Namespace           | `$(NAMESPACE)` — 选你现有的命名空间                         |
+| Create namespace    | **取消勾选**（命名空间已经存在）                                 |
 | Helm Repository URL | `oci://registry-1.docker.io/apache/seatunnel-helm` |
-| Version | `2.3.11` |
+| Version             | `2.3.11`                                           |
 
 点击 Next，在 YAML 编辑器中粘贴：
 
@@ -287,6 +287,7 @@ ls /opt/seatunnel/lib/
 ## 2.1 Web 是什么
 
 SeaTunnel-Web 是一个 Spring Boot 项目，提供浏览器界面来管理数据源、配置任务、查看运行状态。它需要：
+
 - **MySQL**：存元数据
 - **Engine 客户端**：通过 Hazelcast 跟 Engine 集群通信
 
@@ -456,6 +457,7 @@ CMD ["sh", "-c", "${ST_WEB_HOME}/bin/seatunnel-backend-daemon.sh start && tail -
 ```
 
 > **注意事项**：
+> 
 > - Dockerfile 中的 `$(NAMESPACE)` 在构建时会被当作字面量写入配置文件，实际的命名空间由部署时的 K8s DNS 解析决定，因此构建时不需要替换。
 > - 其他应用部署在**同一个命名空间**中，所以集群内部 DNS 地址中的命名空间部分要一致。
 
@@ -479,26 +481,26 @@ Workloads → Deployments → Create
 
 **基本信息**：
 
-| 字段 | 值 |
-|------|-----|
-| Name | `seatunnel-web` |
-| Namespace | `$(NAMESPACE)` — 选择你现有的命名空间 |
-| Container Image | `harbor.你的公司.com/seatunnel/seatunnel-web:1.0.3` |
-| Image Pull Policy | Always |
+| 字段                | 值                                               |
+| ----------------- | ----------------------------------------------- |
+| Name              | `seatunnel-web`                                 |
+| Namespace         | `$(NAMESPACE)` — 选择你现有的命名空间                     |
+| Container Image   | `harbor.你的公司.com/seatunnel/seatunnel-web:1.0.3` |
+| Image Pull Policy | Always                                          |
 
 > 如果平台集成了 Harbor，Pull Secrets 不用填。否则选 `harbor-secret`。
 
 **端口**：点 Add Port，加两个：
 
 | Service Type | Port | Container Port | Protocol |
-|-------------|------|---------------|----------|
-| ClusterIP | 8801 | 8801 | TCP |
-| ClusterIP | 7890 | 7890 | TCP |
+| ------------ | ---- | -------------- | -------- |
+| ClusterIP    | 8801 | 8801           | TCP      |
+| ClusterIP    | 7890 | 7890           | TCP      |
 
 **环境变量**：点 Add Environment Variable
 
-| Key | Value |
-|-----|-------|
+| Key                   | Value       |
+| --------------------- | ----------- |
 | `DATASOURCE_PASSWORD` | 你的 MySQL 密码 |
 
 **健康检查** → Readiness Probe：
@@ -641,6 +643,7 @@ nc -zv seatunnel-worker-0.seatunnel-hl.$(NAMESPACE).svc.cluster.local 5802
 ```
 
 **原因排查**：
+
 - Headless Service 的 `clusterIP` 是不是 `None`？
 - 所有节点的 `cluster-name` 是不是一致？
 - 网络策略/防火墙有没有放开 5801、5802？
@@ -657,6 +660,7 @@ nc -zv seatunnel-master-0.seatunnel-hl.$(NAMESPACE).svc.cluster.local 5801
 ```
 
 **原因排查**：
+
 - `cluster-members` 的 DNS 地址写对了没有（命名空间部分要匹配实际部署的命名空间）？
 - `cluster-name` 和 Engine 的是否一致？
 
@@ -665,6 +669,7 @@ nc -zv seatunnel-master-0.seatunnel-hl.$(NAMESPACE).svc.cluster.local 5801
 Pod 拉不到镜像。点 Pod 看 Events。
 
 **原因排查**：
+
 - 镜像标签在 Harbor 中存不存在？
 - 如果平台没集成 Harbor，有没有配 `imagePullSecrets`？
 - Secret 里的账号密码对不对？
@@ -688,38 +693,38 @@ ls /opt/seatunnel/lib/
 
 ### 镜像清单
 
-| 镜像 | Harbor 地址 | 装了啥 |
-|------|------------|--------|
+| 镜像     | Harbor 地址                                      | 装了啥                                                                             |
+| ------ | ---------------------------------------------- | ------------------------------------------------------------------------------- |
 | Engine | `harbor.xxx/seatunnel/seatunnel-engine:2.3.11` | Engine + connector-jdbc + connector-doris + connector-cdc-mysql + MySQL JDBC 驱动 |
-| Web | `harbor.xxx/seatunnel/seatunnel-web:1.0.3` | Web + Engine Client + Hazelcast 配置 + application.yml + MySQL JDBC 驱动 |
+| Web    | `harbor.xxx/seatunnel/seatunnel-web:1.0.3`     | Web + Engine Client + Hazelcast 配置 + application.yml + MySQL JDBC 驱动            |
 
 ### 端口
 
-| 组件 | 端口 | 干什么用 |
-|------|------|---------|
-| Master | 5801 | 集群通信 + REST API |
-| Worker | 5802 | 集群通信 |
-| Web UI | 8801 | 浏览器访问 |
+| 组件       | 端口   | 干什么用                     |
+| -------- | ---- | ------------------------ |
+| Master   | 5801 | 集群通信 + REST API          |
+| Worker   | 5802 | 集群通信                     |
+| Web UI   | 8801 | 浏览器访问                    |
 | Web 健康检查 | 7890 | Readiness/Liveness Probe |
 
 ### 目录
 
-| Pod 内路径 | 里面放什么 |
-|-----------|-----------|
+| Pod 内路径                      | 里面放什么                                     |
+| ---------------------------- | ----------------------------------------- |
 | `/opt/seatunnel/connectors/` | 连接器 jar（connector-jdbc、connector-doris 等） |
-| `/opt/seatunnel/lib/` | JDBC 驱动 jar（mysql-connector-j 等） |
-| `/opt/seatunnel-web/libs/` | Web 数据源驱动 jar |
-| `/opt/seatunnel-web/conf/` | application.yml、hazelcast-client.yaml |
+| `/opt/seatunnel/lib/`        | JDBC 驱动 jar（mysql-connector-j 等）          |
+| `/opt/seatunnel-web/libs/`   | Web 数据源驱动 jar                             |
+| `/opt/seatunnel-web/conf/`   | application.yml、hazelcast-client.yaml     |
 
 ### v8 变更记录
 
 与 v7 相比，v8 做了以下调整：
 
-| 变更项 | v7 | v8 |
-|--------|----|----|
-| 构建工具 | Docker（Linux/Mac） | Podman Desktop（Windows） |
-| 命名空间策略 | 新建 `seatunnel` 命名空间 | 使用现有命名空间，用 `$(NAMESPACE)` 占位 |
-| Docker 命令 | `docker build/push/run` | `podman build/push/run` |
-| 环境要求 | 一台有 Docker + JDK 11 的机器 | 一台安装了 Podman Desktop 的 Windows 机器 |
-| Helm 安装 | Create namespace ✅ 勾选 | **取消勾选**（命名空间已存在） |
-| 新增章节 | — | Podman Desktop 常见问题、v8 变更记录 |
+| 变更项       | v7                      | v8                                |
+| --------- | ----------------------- | --------------------------------- |
+| 构建工具      | Docker（Linux/Mac）       | Podman Desktop（Windows）           |
+| 命名空间策略    | 新建 `seatunnel` 命名空间     | 使用现有命名空间，用 `$(NAMESPACE)` 占位      |
+| Docker 命令 | `docker build/push/run` | `podman build/push/run`           |
+| 环境要求      | 一台有 Docker + JDK 11 的机器 | 一台安装了 Podman Desktop 的 Windows 机器 |
+| Helm 安装   | Create namespace ✅ 勾选   | **取消勾选**（命名空间已存在）                 |
+| 新增章节      | —                       | Podman Desktop 常见问题、v8 变更记录       |
