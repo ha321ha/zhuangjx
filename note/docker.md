@@ -44,7 +44,7 @@ echo \
 ```
 
 > 如果 `$VERSION_CODENAME` 为空，改用手动指定或使用 `lsb_release -cs`：
->
+> 
 > ```bash
 > echo \
 >   "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu \
@@ -55,11 +55,11 @@ echo \
 ### 2.3 安装 Docker Engine 及插件
 
 ```bash
-sudo apt-get update
 sudo apt-get install docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
 ```
 
 > 各组件说明：
+> 
 > - `docker-ce` — Docker Engine 守护进程
 > - `docker-ce-cli` — `docker` 命令行工具
 > - `containerd.io` — 容器运行时
@@ -94,7 +94,7 @@ sudo usermod -aG docker $USER
 
 ```powershell
 # Windows PowerShell 中执行
-wsl --terminate Ubuntu
+wsl --shutdown
 wsl
 ```
 
