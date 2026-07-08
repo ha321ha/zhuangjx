@@ -111,17 +111,7 @@ WORKDIR ${SEATUNNEL_HOME}
 
 ### 使用 Podman Desktop 构建并推送
 
-**第一步：登录 Harbor**
-
-```bash
-# 在 Windows 终端中执行（cmd / PowerShell / Git Bash 均可）
-podman login harbor.你的公司.com
-# 提示输入 Harbor 用户名和密码
-```
-
-> Podman Desktop 安装后，`podman` 命令会自动加入系统 PATH。如果提示找不到命令，检查 Podman Desktop 是否已启动（系统托盘有图标），重启终端再试。
-
-**第二步：构建镜像**
+**第一步：构建镜像**
 
 ```bash
 cd seatunnel-engine-build
@@ -140,9 +130,32 @@ COMMIT harbor.你的公司.com/seatunnel/seatunnel-engine:2.3.11
 Successfully tagged ...
 ```
 
+**第二步：推送镜像到 Harbor**
+
+```
+# 导出镜像
+docker save -o seatunnel-engine-2.3.11.tar \
+  reg.meicloud.com:40443/ccs-std/prd/seatunnel-engine:2.3.11
+
+# 压缩（减少传输体积，1.73GB → 约 400~700MB）
+gzip seatunnel-engine-2.3.11.tar
+
+
+# 在目标机器上解压
+gunzip seatunnel-engine-2.3.11.tar.gz
+```
+
+
+
+
+
 **第三步：推送镜像到 Harbor**
 
 ```bash
+# 在 Windows 终端中执行（cmd / PowerShell / Git Bash 均可）
+podman login harbor.你的公司.com
+# 提示输入 Harbor 用户名和密码
+
 podman push harbor.你的公司.com/seatunnel/seatunnel-engine:2.3.11
 ```
 
