@@ -330,7 +330,7 @@ Select-String -Path seatunnel-rendered.yaml -Pattern "^kind:" | Select-Object -U
 
 > - apiVersion:修改：`extensions/v1beta1` → `networking.k8s.io/v1`（K8s v1.22+ 要求）
 > - spec:添加 `ingressClassName: nginx`（匹配集群已有的 Ingress Controller）
-
+> - ingress的域名需要调整
 
 ---
 
