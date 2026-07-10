@@ -432,3 +432,144 @@ SeaTunnel Engine 内置 Web UI（2.3.x 起自带），提供**纯监控**能力�
 kubectl exec -n ccs-sit deployment/seatunnel-worker -- wget -S -O- http://seatunnel-master:8080/ 2>&1 | head -30
 ```
 ---
+
+## 7 高可用minio
+> 找到 ConfigMap 数据中的 `seatunnel.yaml` 段，修改 checkpoint 存储配置。
+
+### 7.1 任务状态
+当前配置（本地文件）
+
+```yaml
+seatunnel:
+  engine:
+    checkpoint:
+      interval: 300000
+      timeout: 10000
+      storage:
+        type: hdfs
+        max-retained: 3
+        plugin-config:
+          namespace: /tmp/seatunnel/checkpoint_snapshot/
+          storage.type: hdfs
+          fs.defaultFS: file:///tmp/
+```
+
+修改后配置（MinIO S3）
+
+```yaml
+seatunnel:
+  engine:
+    checkpoint:
+      interval: 300000
+      timeout: 10000
+      storage:
+        type: hdfs
+        max-retained: 3
+        plugin-config:
+          namespace: /seatunnel/checkpoint_snapshot/
+          storage.type: s3
+          s3.bucket: s3a://myx-sit
+          fs.s3a.endpoint: http://10.26.81.21:30209
+          fs.s3a.access.key: GYad0276JED7Xiwr
+          fs.s3a.secret.key: RwyDywKWjIDrMmmGIfYKKZcqdsyKXmTV
+          fs.s3a.aws.credentials.provider: org.apache.hadoop.fs.s3a.SimpleAWSCredentialsProvider
+          fs.s3a.path.style.access: true
+```
+### 7.2 元数据
+当前的 `conf/hazelcast.yaml` **没有** `map` 配置段，只有 cluster-name、network 和 properties：
+
+修改 hazelcast-master.yaml（在 ConfigMap 数据中），hazelcast-worker.yaml 不需要改，IMap 持久化只在 Master 节点生效。
+```yaml
+hazelcast:
+  cluster-name: seatunnel
+  network:
+    rest-api:
+      enabled: true
+      endpoint-groups:
+        CLUSTER_WRITE:
+          enabled: true
+        DATA:
+          enabled: true
+    join:
+      kubernetes:
+        enabled: true
+        service-dns: seatunnel.ccs-sit.svc.cluster.local
+        service-port: 5801
+    port:
+      auto-increment: false
+      port: 5801
+  properties:
+    hazelcast.invocation.max.retry.count: 20
+    hazelcast.tcp.join.port.try.count: 30
+    hazelcast.logging.type: log4j2
+    hazelcast.operation.generic.thread.count: 50
+    hazelcast.heartbeat.failuredetector.type: phi-accrual
+    hazelcast.heartbeat.interval.seconds: 2
+    hazelcast.max.no.heartbeat.seconds: 180
+    hazelcast.heartbeat.phiaccrual.failuredetector.threshold: 10
+    hazelcast.heartbeat.phiaccrual.failuredetector.sample.size: 200
+    hazelcast.heartbeat.phiaccrual.failuredetector.min.std.dev.millis: 100
+```
+
+### 修改后源文件（在 `conf/hazelcast.yaml` 中新增 `map` 段）
+
+在 `hazelcast` 配置末尾（`properties` 之后）新增 `map` 配置：
+
+```yaml
+hazelcast:
+  cluster-name: seatunnel
+  network:
+    rest-api:
+      enabled: true
+      endpoint-groups:
+        CLUSTER_WRITE:
+          enabled: true
+        DATA:
+          enabled: true
+    join:
+      kubernetes:
+        enabled: true
+        service-dns: seatunnel.ccs-sit.svc.cluster.local
+        service-port: 5801
+    port:
+      auto-increment: false
+      port: 5801
+  properties:
+    hazelcast.invocation.max.retry.count: 20
+    hazelcast.tcp.join.port.try.count: 30
+    hazelcast.logging.type: log4j2
+    hazelcast.operation.generic.thread.count: 50
+    hazelcast.heartbeat.failuredetector.type: phi-accrual
+    hazelcast.heartbeat.interval.seconds: 2
+    hazelcast.max.no.heartbeat.seconds: 180
+    hazelcast.heartbeat.phiaccrual.failuredetector.threshold: 10
+    hazelcast.heartbeat.phiaccrual.failuredetector.sample.size: 200
+    hazelcast.heartbeat.phiaccrual.failuredetector.min.std.dev.millis: 100
+
+  # ⬇️ 新增：IMap 持久化到 MinIO
+  map:
+    engine*:
+      map-store:
+        enabled: true
+        initial-mode: EAGER
+        factory-class-name: org.apache.seatunnel.engine.server.persistence.FileMapStoreFactory
+        properties:
+          type: hdfs
+          namespace: /seatunnel/engine
+          clusterName: seatunnel
+          storage.type: s3
+          s3.bucket: s3a://myx-sit
+          fs.defaultFS: s3a://myx-sit
+          fs.s3a.endpoint: http://10.26.81.21:30209
+          fs.s3a.path.style.access: true
+          fs.s3a.access.key: GYad0276JED7Xiwr
+          fs.s3a.secret.key: RwyDywKWjIDrMmmGIfYKKZcqdsyKXmTV
+          fs.s3a.aws.credentials.provider: org.apache.hadoop.fs.s3a.SimpleAWSCredentialsProvider
+```
+
+> **注意**: 修改 `hazelcast-master.yaml`（在 ConfigMap 数据中），`hazelcast-worker.yaml` **不需要**改，IMap 持久化只在 Master 节点生效。
+
+
+> **注意**: 修改 `hazelcast-master.yaml`（在 ConfigMap 数据中），`hazelcast-worker.yaml` **不需要**改，IMap 持久化只在 Master 节点生效。
+
+### 7.3 验证
