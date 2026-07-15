@@ -1,0 +1,207 @@
+cat << 'EOF' | kubectl apply -n ccs-sit -f -
+
+# ============================================================
+# SeaTunnel Web — 后端资源（ConfigMap + Deployment + Service）
+# ============================================================
+# 使用方式（Rancher Kubectl Shell，一条 heredoc 命令即可部署）：
+#   cat << 'EOF' | kubectl apply -n ccs-sit -f -
+#   <粘贴本文件全部内容>
+#   EOF
+#
+# 命名空间已预设为 ccs-sit（ConfigMap 内 MySQL / Engine DNS 已写死 ccs-sit）。
+# 换命名空间：改 ConfigMap 内两处 ccs-sit + 上面 -n 参数。
+#
+# 【需要修改的地方已用 ===> 标记（MySQL 密码、jwt 密钥等环境专属值）】
+# ============================================================
+
+---
+# ── ConfigMap：后端配置 ─────────────────────────────────────
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  # ===> 如需改名，同步修改下方 Deployment 中 configMap 的 name
+  name: seatunnel-web-backend-configs
+  labels:
+    app.kubernetes.io/name: seatunnel-web-backend
+    app.kubernetes.io/component: backend
+    app.kubernetes.io/instance: seatunnel-web
+data:
+  # ── application.yml ──────────────────────────────────────
+  application.yml: |-
+    #
+    # Licensed to the Apache Software Foundation (ASF) under one or more
+    # contributor license agreements.  See the NOTICE file distributed with
+    # this work for additional information regarding copyright ownership.
+    # The ASF licenses this file to You under the Apache License, Version 2.0
+    # (the "License"); you may not use this file except in compliance with
+    # the License.  You may obtain a copy of the License at
+    #
+    #     http://www.apache.org/licenses/LICENSE-2.0
+    #
+    # Unless required by applicable law or agreed to in writing, software
+    # distributed under the License is distributed on an "AS IS" BASIS,
+    # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    # See the License for the specific language governing permissions and
+    # limitations under the License.
+    #
+
+    server:
+      port: 8801
+
+    spring:
+      application:
+        name: seatunnel
+      jackson:
+        date-format: yyyy-MM-dd HH:mm:ss
+      datasource:
+        driver-class-name: com.mysql.cj.jdbc.Driver
+        # ===> 修改 MySQL 地址/库名/用户名/密码（命名空间已预设 ccs-sit）
+        url: jdbc:mysql://10.26.84.230:33306/seatunnel?useSSL=false&useUnicode=true&characterEncoding=utf-8&allowMultiQueries=true&allowPublicKeyRetrieval=true
+        username: apps
+        password: ktn^DE56q
+	      ldap:
+	        url: ldap://localhost:389
+	        search:
+	          base: dc=example,dc=com
+	          domain: example.com
+	      mvc:
+        pathmatch:
+          matching-strategy: ant_path_matcher
+      async-config:
+        core-pool-size: 10
+        max-pool-size: 20
+        queue-capacity: 100
+
+    jwt:
+      expireTime: 86400
+      # ===> 【必须修改】设置 JWT 密钥，不能太短，建议 32 位以上随机字符串
+      secretKey: aP3kX9mN2vL8qW5fJ7sR4tY6uC1bZ0hC
+      algorithm: HS256
+
+    seatunnel-web:
+      datasource:
+        encryption:
+          type: none
+          keys-to-encrypt:
+            - password
+            - auth
+      access-controller-class: org.apache.seatunnel.app.permission.SeatunnelAccessControllerDefaultImpl
+
+  # ── hazelcast-client.yaml ────────────────────────────────
+  hazelcast-client.yaml: |
+    hazelcast-client:
+      # ===> cluster-name 必须与 SeaTunnel Engine 的 hazelcast.yaml 中的配置一致
+      cluster-name: seatunnel
+      properties:
+        hazelcast.logging.type: log4j2
+      connection-strategy:
+        connection-retry:
+          cluster-connect-timeout-millis: 30000
+      network:
+        cluster-members:
+          # Engine Headless Service 的完整 DNS（已预设 ccs-sit；换命名空间需同步改）
+          #      格式：<service-name>.<namespace>.svc.cluster.local:5801
+          - seatunnel.ccs-sit.svc.cluster.local:5801
+
+---
+# ── Deployment：后端 ─────────────────────────────────────────
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: seatunnel-web-backend
+  labels:
+    app.kubernetes.io/name: seatunnel-web-backend
+    app.kubernetes.io/component: backend
+    app.kubernetes.io/instance: seatunnel-web
+spec:
+  # ===> 按需调整副本数
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: seatunnel-web-backend
+      app.kubernetes.io/component: backend
+      app.kubernetes.io/instance: seatunnel-web
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: seatunnel-web-backend
+        app.kubernetes.io/component: backend
+        app.kubernetes.io/instance: seatunnel-web
+    spec:
+      # ===> 如需从私有仓库拉取镜像，取消注释并配置 imagePullSecrets
+      imagePullSecrets:
+          - name: mc-registry-secret
+      #   - name: regcred
+      containers:
+        - name: seatunnel-web-backend
+          # ===> 【必须修改】替换为你的后端镜像地址
+          image: reg.meicloud.com:40443/ccs-std/sit/seatunnel-web-backend:meiqing-V4.0.0.0.0
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8801
+              name: http
+              protocol: TCP
+          env:
+            - name: TZ
+              value: Asia/Shanghai
+            # ===> SEATUNNEL_HOME 必须与 Engine 节点路径一致
+            - name: SEATUNNEL_HOME
+              value: /opt/seatunnel
+            - name: ST_WEB_BASEDIR_PATH
+              value: /opt/app/seatunnel-web
+          volumeMounts:
+            - mountPath: /opt/app/seatunnel-web/conf/application.yml
+              name: config-volume
+              subPath: application.yml
+            - mountPath: /opt/app/seatunnel-web/conf/hazelcast-client.yaml
+              name: config-volume
+              subPath: hazelcast-client.yaml
+          # ── 启动探针 ──────────────────────────────────────
+          startupProbe:
+            tcpSocket:
+              port: 8801
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            failureThreshold: 30
+          # ── 存活探针 ──────────────────────────────────────
+          livenessProbe:
+            tcpSocket:
+              port: 8801
+            initialDelaySeconds: 60
+            periodSeconds: 30
+          resources:
+            # ===> 按需调整资源配置
+            requests:
+              cpu: "1"
+              memory: "2Gi"
+            limits:
+              cpu: "2"
+              memory: "4Gi"
+      volumes:
+        - name: config-volume
+          configMap:
+            name: seatunnel-web-backend-configs
+
+---
+# ── Service：后端 ────────────────────────────────────────────
+apiVersion: v1
+kind: Service
+metadata:
+  name: seatunnel-web-backend
+  labels:
+    app.kubernetes.io/name: seatunnel-web-backend
+    app.kubernetes.io/component: backend
+    app.kubernetes.io/instance: seatunnel-web
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: seatunnel-web-backend
+    app.kubernetes.io/component: backend
+    app.kubernetes.io/instance: seatunnel-web
+  ports:
+    - name: http
+      protocol: TCP
+      port: 8801
+      targetPort: 8801
+
+EOF
